@@ -104,8 +104,8 @@ const yoga = createYoga<Env>({
 							}),
 						});
 
-						const data:any = await response.json();
-						
+						const data: any = await response.json();
+
 						// 检查账户余额错误
 						if (data.error && data.error.message === 'Insufficient Balance') {
 							return '账户余额不足，请充值后再试。';
@@ -120,36 +120,8 @@ const yoga = createYoga<Env>({
 						}
 						// 如果没有找到答案，返回默认消息
 						return '对不起，我无法回答这个问题。请稍后再试。';
-					} catch (error:any) {
-						throw new Error(`DeepSeek API error: ${error.message}`);
-					}
-					try {
-						// 初始化 OpenAI 客户端，使用 DeepSeek 的 baseURL 和 API Key
-						const openai = new OpenAI({
-							baseURL: 'https://api.deepseek.com', // DeepSeek 的推荐 baseURL 是 /v1
-							apiKey: deepseekApiKey,
-						});
-
-						// 调用 chat completion API
-						const completion = await openai.chat.completions.create({
-							messages: [
-								{ role: 'system', content: prompt }, // 使用 GraphQL 查询中传入的 prompt
-							],
-							model: 'deepseek-chat', // 或 deepseek-coder
-							// 可以根据需要添加其他参数，例如 temperature, max_tokens 等
-						});
-
-						// 检查响应结构并返回内容
-						if (completion.choices && completion.choices.length > 0 && completion.choices[0].message) {
-							return completion.choices[0].message.content;
-						} else {
-							console.error('Unexpected DeepSeek response structure:', completion);
-							return 'Error: Could not get a valid response from DeepSeek.';
-						}
 					} catch (error: any) {
-						console.error('DeepSeek API error:', error);
-						// 抛出错误，GraphiQL 或客户端会接收到
-						throw new Error(`Failed to get response from DeepSeek: ${error.message || error}`);
+						throw new Error(`DeepSeek API error: ${error.message}`);
 					}
 				},
 			},
@@ -194,7 +166,15 @@ const yoga = createYoga<Env>({
 export default {
 	// Worker 的 fetch 入口
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		// 将 env 对象传递给 yoga.fetch，以便 resolver 可以访问环境变量
-		return yoga.fetch(request, env);
+		const response = await yoga.fetch(request, env);
+		const headers = new Headers(response.headers);
+		headers.set('Access-Control-Allow-Origin', '*');
+		headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+		headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers,
+		});
 	},
 };
